@@ -14,7 +14,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 const createProduct = async (req, res) => {
   try {
-    const images = req.files.map(file => `http://localhost:3000/${file.filename}`);
+  const images = req.files.map(file => `http://localhost:3000/uploads/${file.filename}`);
     const product = new productModel({
       categoryName: req.body.categoryName,
       description: req.body.description,
@@ -37,7 +37,7 @@ const addProductTypes = async (req, res) => {
   try {
     const categoryId = req.body.categoryName;
     const category = await productModel.findById(categoryId);
-    const images = req.files.map(file => `http://localhost:3000/${file.filename}`);
+  const images = req.files.map(file => `http://localhost:3000/uploads/${file.filename}`);
     category.productTypes.push({
       categoryName: req.body.categoryName,
       productName: req.body.productName,
@@ -86,7 +86,7 @@ const editProduct = async (req, res) => {
       categoryName: req.body.categoryName,
       description: req.body.description,
       discount: req.body.discount,
-      image: `http://localhost:3000/${req.file.filename}`
+  image: `http://localhost:3000/uploads/${req.file.filename}`
     };
 
     const updatedProduct = await productModel.findByIdAndUpdate(productId, updatedData, { new: true });

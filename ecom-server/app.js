@@ -11,8 +11,14 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 // Import routes
 const authRoutes = require('./src/auth/userRoute');
-const productRoutes = require('./src/product/productRoutes');
-const userRoutes = require('./src/admin/adminRoute')
+const productRoutes = require('./src/product/product.routes');
+const legacyProductRoutes = require('./src/product/productRoutes'); // Keep legacy routes for compatibility
+const userRoutes = require('./src/admin/adminRoute');
+const bannerRoutes = require('./src/banner/banner.routes');
+const blogRoutes = require('./src/blog/blog.routes');
+const promoRoutes = require('./src/promo/promo.routes');
+const newsletterRoutes = require('./src/newsletter/newsletter.routes');
+const homeRoutes = require('./src/home/home.routes');
 
 // Initialize environment variables
 dotenv.config();
@@ -32,7 +38,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(corsMiddleware);
 
 // Static files setup (uploads directory)
-app.use(express.static('uploads'));
+app.use('/uploads', express.static('uploads'));
 
 // Database connection function
 const connectToDatabase = async () => {
@@ -50,10 +56,16 @@ const connectToDatabase = async () => {
 connectToDatabase();
 
 // Routes setup
-app.use('/products', productRoutes);
+app.use('/api/products', productRoutes); // New product routes
+app.use('/products', legacyProductRoutes); // Legacy product routes
+app.use('/api/blogs', blogRoutes); // Blog routes
+app.use('/api/promos', promoRoutes); // Promo routes
+app.use('/api/newsletter', newsletterRoutes); // Newsletter routes
+app.use('/api/home', homeRoutes); // Homepage data routes
 app.use('/', require('./routes/index')); // Index route
 app.use('/auth', authRoutes); // Authentication routes
-app.use('/users', userRoutes);
+app.use('/users', userRoutes); // User/Admin routes
+app.use('/', bannerRoutes); // Banner routes
 
 // Error handling middleware
 app.use(notFoundHandler); // Handle 404 errors
