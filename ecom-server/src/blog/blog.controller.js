@@ -1,6 +1,13 @@
 const Blog = require('./blog.model');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+// Ensure blog uploads directory exists
+const blogUploadsDir = './uploads/blog';
+if (!fs.existsSync(blogUploadsDir)){
+  fs.mkdirSync(blogUploadsDir, { recursive: true });
+}
 
 // Multer configuration for blog image uploads
 const storage = multer.diskStorage({
@@ -29,36 +36,46 @@ const upload = multer({
 // Create blog post
 const createBlog = async (req, res) => {
   try {
+    console.log('Creating blog with data:', req.body);
+    console.log('File uploaded:', req.file);
+
     const imageUrl = req.file 
       ? `http://localhost:3000/uploads/blog/${req.file.filename}`
       : null;
 
-    const blog = new Blog({
+    const blogData = {
       title: req.body.title,
-      excerpt: req.body.excerpt,
+      excerpt: req.body.excerpt || req.body.title, // Use title as fallback for excerpt
       content: req.body.content,
       author: {
-        name: req.body.authorName,
-        email: req.body.authorEmail,
+        name: req.body.authorName || 'Admin',
+        email: req.body.authorEmail || 'admin@example.com',
         avatar: req.body.authorAvatar
       },
-      image: {
-        url: imageUrl,
-        alt: req.body.imageAlt || req.body.title
-      },
       tags: req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()) : [],
-      category: req.body.category,
+      category: req.body.category || 'design',
       featured: req.body.featured === 'true',
       status: req.body.status || 'draft',
       seo: {
-        metaTitle: req.body.metaTitle,
-        metaDescription: req.body.metaDescription,
-        slug: req.body.slug || req.body.title.toLowerCase().replace(/\s+/g, '-')
+        metaTitle: req.body.metaTitle || req.body.title,
+        metaDescription: req.body.metaDescription || req.body.excerpt || req.body.title,
+        slug: req.body.slug || (req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '') + '-' + Date.now())
       },
       publishedAt: req.body.status === 'published' ? new Date() : null
-    });
+    };
 
+    // Only add image if one was uploaded
+    if (imageUrl) {
+      blogData.image = {
+        url: imageUrl,
+        alt: req.body.imageAlt || req.body.title
+      };
+    }
+
+    const blog = new Blog(blogData);
     await blog.save();
+
+    console.log('Blog created successfully:', blog);
 
     res.status(201).json({
       success: true,
@@ -66,6 +83,7 @@ const createBlog = async (req, res) => {
       data: blog
     });
   } catch (err) {
+    console.error('Error creating blog:', err);
     res.status(500).json({
       success: false,
       message: err.message || "Some error occurred while creating the blog post."
@@ -83,10 +101,9 @@ const getAllBlogs = async (req, res) => {
     // Build filter object
     const filter = {};
     
+    // For admin panel, show all posts unless specifically filtered
     if (req.query.status) {
       filter.status = req.query.status;
-    } else {
-      filter.status = 'published'; // Default to published only
     }
     
     if (req.query.featured === 'true') filter.featured = true;
@@ -99,7 +116,7 @@ const getAllBlogs = async (req, res) => {
       const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1;
       sort[sortField] = sortOrder;
     } else {
-      sort.publishedAt = -1; // Default sort by newest published
+      sort.createdAt = -1; // Default sort by newest created
     }
 
     const blogs = await Blog.find(filter)
@@ -108,6 +125,8 @@ const getAllBlogs = async (req, res) => {
       .limit(limit);
 
     const total = await Blog.countDocuments(filter);
+
+    console.log(`Found ${blogs.length} blogs out of ${total} total`);
 
     res.status(200).json({
       success: true,
@@ -120,6 +139,7 @@ const getAllBlogs = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Error fetching blogs:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -211,13 +231,17 @@ const updateBlog = async (req, res) => {
   try {
     const blogId = req.params.id;
     
+    console.log('Updating blog with ID:', blogId);
+    console.log('Update data:', req.body);
+    console.log('File uploaded:', req.file);
+    
     const updateData = {
       title: req.body.title,
-      excerpt: req.body.excerpt,
+      excerpt: req.body.excerpt || '',
       content: req.body.content,
-      category: req.body.category,
+      category: req.body.category || 'design',
       featured: req.body.featured === 'true',
-      status: req.body.status,
+      status: req.body.status || 'draft',
       updatedAt: new Date()
     };
 
@@ -235,10 +259,10 @@ const updateBlog = async (req, res) => {
     }
 
     // Handle author updates
-    if (req.body.authorName) {
+    if (req.body.authorName || req.body.author) {
       updateData.author = {
-        name: req.body.authorName,
-        email: req.body.authorEmail,
+        name: req.body.authorName || req.body.author || 'Admin',
+        email: req.body.authorEmail || 'admin@example.com',
         avatar: req.body.authorAvatar
       };
     }
@@ -246,14 +270,14 @@ const updateBlog = async (req, res) => {
     // Handle SEO updates
     if (req.body.metaTitle || req.body.metaDescription || req.body.slug) {
       updateData.seo = {
-        metaTitle: req.body.metaTitle,
-        metaDescription: req.body.metaDescription,
-        slug: req.body.slug
+        metaTitle: req.body.metaTitle || req.body.title,
+        metaDescription: req.body.metaDescription || req.body.excerpt,
+        slug: req.body.slug || req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')
       };
     }
 
     // Set publishedAt if status is being changed to published
-    if (req.body.status === 'published' && req.body.status !== req.body.previousStatus) {
+    if (req.body.status === 'published') {
       updateData.publishedAt = new Date();
     }
 
@@ -270,12 +294,15 @@ const updateBlog = async (req, res) => {
       });
     }
 
+    console.log('Blog updated successfully:', updatedBlog);
+
     res.status(200).json({
       success: true,
       message: 'Blog post updated successfully',
       data: updatedBlog
     });
   } catch (error) {
+    console.error('Error updating blog:', error);
     res.status(500).json({
       success: false,
       message: error.message

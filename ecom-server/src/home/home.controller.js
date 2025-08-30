@@ -40,16 +40,15 @@ const getHomepageData = async (req, res) => {
     .limit(3)
     .select('title price image link');
 
-    // Get latest blog posts (limit 2)
+    // Get latest blog posts (show all published blogs)
     const blogPosts = await Blog.find({ 
       status: 'published' 
     })
     .sort({ publishedAt: -1 })
-    .limit(2)
     .select('title excerpt image publishedAt seo.slug');
 
-    // Get latest banner
-    const latestBanner = await Banner.findOne()
+    // Get all active banners
+    const banners = await Banner.find()
       .sort({ createdAt: -1 })
       .select('imageUrl');
 
@@ -96,7 +95,8 @@ const getHomepageData = async (req, res) => {
       success: true,
       data: {
         hero: {
-          banner: latestBanner?.imageUrl || null,
+          banners: banners.map(banner => banner.imageUrl),
+          banner: banners.length > 0 ? banners[0].imageUrl : null, // Keep for backward compatibility
           title: "Indoor Lighting",
           subtitle: "Decorative",
           description: "Huge site-wide sale up to 50% off all interior lamps.",

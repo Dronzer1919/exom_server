@@ -10,4 +10,8 @@ router.get('/:id', promoController.getPromoById);
 router.put('/:id', promoController.upload.single('image'), promoController.updatePromo);
 router.delete('/:id', promoController.deletePromo);
 
+// Promo code validation and application
+router.post('/validate', promoController.validatePromoCode);
+router.post('/apply', promoController.applyPromoCode);
+
 module.exports = router;

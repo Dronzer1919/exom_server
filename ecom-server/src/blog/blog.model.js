@@ -9,8 +9,7 @@ const blogSchema = new mongoose.Schema({
   },
   excerpt: {
     type: String,
-    required: true,
-    maxlength: 200
+    maxlength: 500
   },
   content: {
     type: String,
@@ -22,7 +21,7 @@ const blogSchema = new mongoose.Schema({
     avatar: { type: String }
   },
   image: {
-    url: { type: String, required: true },
+    url: { type: String },
     alt: { type: String, default: '' }
   },
   tags: [String],
