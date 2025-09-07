@@ -19,6 +19,7 @@ const blogRoutes = require('./src/blog/blog.routes');
 const promoRoutes = require('./src/promo/promo.routes');
 const newsletterRoutes = require('./src/newsletter/newsletter.routes');
 const homeRoutes = require('./src/home/home.routes');
+const cartRoutes = require('./src/cart/cart.routes');
 
 // Initialize environment variables
 dotenv.config();
@@ -36,6 +37,10 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 // Apply CORS middleware
 app.use(corsMiddleware);
+
+// Cookie parser - used to support guest cart cookie (HttpOnly)
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 
 // Static files setup (uploads directory)
 app.use('/uploads', express.static('uploads'));
@@ -57,6 +62,7 @@ connectToDatabase();
 
 // Routes setup
 app.use('/api/products', productRoutes); // New product routes
+app.use('/api/cart', cartRoutes); // Cart routes
 app.use('/products', legacyProductRoutes); // Legacy product routes
 app.use('/api/blogs', blogRoutes); // Blog routes
 app.use('/api/promos', promoRoutes); // Promo routes

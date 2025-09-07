@@ -299,6 +299,33 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// Get related products by category (excluding current product)
+const getRelatedProducts = async (req, res) => {
+  try {
+    const { categoryId, excludeId } = req.params;
+    const limit = parseInt(req.query.limit) || 4;
+
+    const relatedProducts = await Product.find({
+      category: categoryId,
+      _id: { $ne: excludeId }, // Exclude current product
+      status: 'active'
+    })
+    .populate('category', 'categoryName')
+    .sort({ 'rating.average': -1, createdAt: -1 })
+    .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      data: relatedProducts
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // Search products
 const searchProducts = async (req, res) => {
   try {
@@ -364,5 +391,6 @@ module.exports = {
   updateProduct,
   deleteProduct,
   searchProducts,
+  getRelatedProducts,
   upload
 };

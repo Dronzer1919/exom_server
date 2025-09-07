@@ -8,6 +8,7 @@ router.get('/all', productController.getAllProducts);
 router.get('/featured', productController.getFeaturedProducts);
 router.get('/top-rated', productController.getTopRatedProducts);
 router.get('/search', productController.searchProducts);
+router.get('/related/:categoryId/:excludeId', productController.getRelatedProducts);
 router.get('/:id', productController.getProductById);
 router.put('/:id', productController.upload.array('images', 5), productController.updateProduct);
 router.delete('/:id', productController.deleteProduct);

@@ -25,51 +25,51 @@ const seedCategories = async () => {
 
     const categories = [
       {
-        categoryName: 'Furniture',
-        description: 'Home and office furniture including chairs, tables, and storage solutions',
-        discount: 10,
-        image: []
-      },
-      {
-        categoryName: 'Electronics',
-        description: 'Electronic devices and gadgets including phones, laptops, and accessories',
-        discount: 5,
-        image: []
-      },
-      {
-        categoryName: 'Clothing',
-        description: 'Fashion and apparel for men, women, and children',
+        categoryName: 'Living Room',
+        description: 'Complete living room furniture including sofas, coffee tables, and entertainment units',
         discount: 15,
         image: []
       },
       {
-        categoryName: 'Home & Garden',
-        description: 'Home improvement and garden supplies including tools and decorations',
-        discount: 8,
-        image: []
-      },
-      {
-        categoryName: 'Sports & Outdoors',
-        description: 'Sports equipment and outdoor gear for active lifestyles',
-        discount: 12,
-        image: []
-      },
-      {
-        categoryName: 'Books & Media',
-        description: 'Books, movies, music, and educational materials',
+        categoryName: 'Bedroom',
+        description: 'Bedroom furniture including beds, wardrobes, nightstands, and dressers',
         discount: 20,
         image: []
       },
       {
-        categoryName: 'Health & Beauty',
-        description: 'Health and beauty products including skincare and wellness items',
+        categoryName: 'Dining Room',
+        description: 'Dining furniture including tables, chairs, and storage cabinets',
+        discount: 12,
+        image: []
+      },
+      {
+        categoryName: 'Office Furniture',
+        description: 'Professional office furniture including desks, chairs, and filing cabinets',
         discount: 18,
         image: []
       },
       {
-        categoryName: 'Toys & Games',
-        description: 'Toys and gaming products for all ages',
+        categoryName: 'Storage & Organization',
+        description: 'Storage solutions including wardrobes, shelving units, and organizers',
+        discount: 10,
+        image: []
+      },
+      {
+        categoryName: 'Lighting',
+        description: 'Indoor and outdoor lighting solutions including lamps and chandeliers',
+        discount: 15,
+        image: []
+      },
+      {
+        categoryName: 'Decor & Accessories',
+        description: 'Home decor items including rugs, cushions, and decorative pieces',
         discount: 25,
+        image: []
+      },
+      {
+        categoryName: 'Outdoor Furniture',
+        description: 'Garden and patio furniture for outdoor living spaces',
+        discount: 20,
         image: []
       }
     ];
