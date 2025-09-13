@@ -15,6 +15,11 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  shortDescription: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  },
   price: {
     type: Number,
     required: true,
@@ -26,10 +31,14 @@ const productSchema = new mongoose.Schema({
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'ProductCategory',
+    ref: 'Category',
     required: true
   },
   subcategory: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category'
+  },
+  brand: {
     type: String,
     trim: true
   },
@@ -38,9 +47,24 @@ const productSchema = new mongoose.Schema({
     alt: { type: String, default: '' },
     isPrimary: { type: Boolean, default: false }
   }],
+  specifications: [{
+    name: { type: String, required: true },
+    value: { type: String, required: true },
+    unit: String,
+    category: String // Group specifications by category
+  }],
+  features: [String], // Key features/highlights
+  technicalSpecs: [{
+    category: String, // e.g., "Display", "Performance", "Connectivity"
+    specs: [{
+      name: String,
+      value: String,
+      unit: String
+    }]
+  }],
   badge: {
     type: String,
-    enum: ['new', 'sale', 'hot', 'featured', 'limited'],
+    enum: ['new', 'sale', 'hot', 'featured', 'limited', 'bestseller'],
     default: null
   },
   rating: {
@@ -54,15 +78,33 @@ const productSchema = new mongoose.Schema({
     dimensions: {
       length: Number,
       width: Number,
-      height: Number
-    }
+      height: Number,
+      unit: { type: String, default: 'cm' }
+    },
+    lowStockAlert: { type: Number, default: 5 }
+  },
+  variants: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ProductVariant'
+  }],
+  hasVariants: {
+    type: Boolean,
+    default: false
   },
   tags: [String],
+  relatedProducts: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
+  }],
+  crossSellProducts: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
+  }],
   featured: { type: Boolean, default: false },
   topRated: { type: Boolean, default: false },
   status: {
     type: String,
-    enum: ['active', 'inactive', 'discontinued'],
+    enum: ['active', 'inactive', 'discontinued', 'draft'],
     default: 'active'
   },
   seo: {
@@ -77,10 +119,30 @@ const productSchema = new mongoose.Schema({
 });
 
 // Index for better performance
-productSchema.index({ category: 1, status: 1 });
+productSchema.index({ category: 1, subcategory: 1, status: 1 });
 productSchema.index({ featured: 1, status: 1 });
 productSchema.index({ topRated: 1, status: 1 });
 productSchema.index({ 'rating.average': -1 });
 productSchema.index({ price: 1 });
+productSchema.index({ brand: 1 });
+productSchema.index({ tags: 1 });
+
+// Virtual for variants
+productSchema.virtual('productVariants', {
+  ref: 'ProductVariant',
+  localField: '_id',
+  foreignField: 'product'
+});
+
+// Pre-save middleware to generate slug
+productSchema.pre('save', function(next) {
+  if (this.isModified('title')) {
+    this.seo.slug = this.title.toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .trim();
+  }
+  next();
+});
 
 module.exports = mongoose.model('Product', productSchema);

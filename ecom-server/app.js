@@ -12,7 +12,10 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 // Import routes
 const authRoutes = require('./src/auth/userRoute');
 const productRoutes = require('./src/product/product.routes');
-const legacyProductRoutes = require('./src/product/productRoutes'); // Keep legacy routes for compatibility
+const enhancedProductRoutes = require('./src/product/enhancedProduct.routes'); // New enhanced product routes
+const categoryRoutes = require('./src/product/category.routes'); // Category management routes
+const variantRoutes = require('./src/product/productVariant.routes'); // Product variant routes
+// const legacyProductRoutes = require('./src/product/productRoutes'); // Keep legacy routes for compatibility - TEMPORARILY DISABLED
 const userRoutes = require('./src/admin/adminRoute');
 const bannerRoutes = require('./src/banner/banner.routes');
 const blogRoutes = require('./src/blog/blog.routes');
@@ -61,9 +64,11 @@ const connectToDatabase = async () => {
 connectToDatabase();
 
 // Routes setup
-app.use('/api/products', productRoutes); // New product routes
+app.use('/api/products', enhancedProductRoutes); // Enhanced product routes with categories and variants
+app.use('/api/categories', categoryRoutes); // Category management routes
+app.use('/api/variants', variantRoutes); // Product variant routes
 app.use('/api/cart', cartRoutes); // Cart routes
-app.use('/products', legacyProductRoutes); // Legacy product routes
+// app.use('/products', legacyProductRoutes); // Legacy product routes (temporarily disabled)
 app.use('/api/blogs', blogRoutes); // Blog routes
 app.use('/api/promos', promoRoutes); // Promo routes
 app.use('/api/newsletter', newsletterRoutes); // Newsletter routes

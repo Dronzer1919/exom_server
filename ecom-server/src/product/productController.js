@@ -31,24 +31,64 @@ const upload = multer({
 // Create a new product
 const createProduct = async (req, res) => {
   try {
+    console.log('Received request body:', req.body);
+    console.log('Received files:', req.files ? req.files.length : 0);
+    
     const images = req.files ? req.files.map((file, index) => ({
       url: `http://localhost:3000/uploads/${file.filename}`,
       alt: req.body.title || 'Product image',
       isPrimary: index === 0
     })) : [];
 
+    // Validate required fields
+    if (!req.body.title) {
+      return res.status(400).json({
+        success: false,
+        message: "Product title is required"
+      });
+    }
+    
+    if (!req.body.category) {
+      return res.status(400).json({
+        success: false,
+        message: "Product category is required"
+      });
+    }
+    
+    if (!req.body.price) {
+      return res.status(400).json({
+        success: false,
+        message: "Product price is required"
+      });
+    }
+    
+    // Parse and validate quantity
+    let quantity = 0; // Default to 0
+    if (req.body.quantity !== undefined && req.body.quantity !== null && req.body.quantity !== '') {
+      quantity = parseInt(req.body.quantity);
+      if (isNaN(quantity) || quantity < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Product quantity must be a valid number >= 0"
+        });
+      }
+    }
+    
+    console.log('Creating product with quantity:', quantity);
+
     const product = new Product({
       title: req.body.title,
       subtitle: req.body.subtitle,
-      description: req.body.description,
+      description: req.body.description || req.body.title, // Fallback to title if no description
       price: parseFloat(req.body.price),
       originalPrice: req.body.originalPrice ? parseFloat(req.body.originalPrice) : null,
       category: req.body.category,
       subcategory: req.body.subcategory,
+      brand: req.body.brand,
       images: images,
       badge: req.body.badge,
       inventory: {
-        quantity: parseInt(req.body.quantity) || 0,
+        quantity: quantity,
         sku: req.body.sku,
         weight: parseFloat(req.body.weight) || null,
         dimensions: {
@@ -60,11 +100,18 @@ const createProduct = async (req, res) => {
       tags: req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()) : [],
       featured: req.body.featured === 'true',
       topRated: req.body.topRated === 'true',
+      status: req.body.status || 'active',
       seo: {
         metaTitle: req.body.metaTitle,
         metaDescription: req.body.metaDescription,
         slug: req.body.slug || req.body.title.toLowerCase().replace(/\s+/g, '-')
       }
+    });
+
+    console.log('Saving product with data:', {
+      title: product.title,
+      category: product.category,
+      quantity: product.inventory.quantity
     });
 
     await product.save();
@@ -76,9 +123,11 @@ const createProduct = async (req, res) => {
       data: product
     });
   } catch (err) {
+    console.error('Error creating product:', err);
     res.status(500).json({
       success: false,
-      message: err.message || "Some error occurred while creating the product."
+      message: err.message || "Some error occurred while creating the product.",
+      error: err.errors || err
     });
   }
 };
@@ -94,6 +143,73 @@ const getAllProducts = async (req, res) => {
     const filter = { status: 'active' };
     
     if (req.query.category) filter.category = req.query.category;
+    // Support filtering by categoryName (one or multiple, comma-separated)
+    if (req.query.categoryName) {
+      try {
+        // Allow multiple names: categoryName=table,chair
+        const rawNames = req.query.categoryName.split(',')
+          .map(n => n.trim())
+          .filter(Boolean);
+
+        if (rawNames.length) {
+          // Case-insensitive exact match for each provided name
+          const categories = await ProductCategory.find({
+            categoryName: { $in: rawNames }
+          }).select('_id categoryName');
+
+          if (!categories.length) {
+            return res.status(200).json({
+              success: true,
+              data: [],
+              pagination: {
+                currentPage: page,
+                totalPages: 0,
+                totalItems: 0,
+                itemsPerPage: limit
+              },
+              filtersApplied: {
+                categoryName: rawNames
+              },
+              warning: 'No categories matched the provided categoryName parameter(s).'
+            });
+          }
+
+            const categoryIds = categories.map(c => c._id.toString());
+
+            if (filter.category) {
+              // If both category ID and names supplied, ensure consistency / intersection
+              const providedId = filter.category.toString();
+              if (!categoryIds.includes(providedId)) {
+                return res.status(200).json({
+                  success: true,
+                  data: [],
+                  pagination: {
+                    currentPage: page,
+                    totalPages: 0,
+                    totalItems: 0,
+                    itemsPerPage: limit
+                  },
+                  filtersApplied: {
+                    category: providedId,
+                    categoryName: rawNames
+                  },
+                  warning: 'Provided category ID does not correspond to any of the supplied categoryName values.'
+                });
+              }
+              // If consistent, keep single ID filter already set.
+            } else {
+              // Use the category IDs derived from names
+              filter.category = { $in: categoryIds };
+            }
+        }
+      } catch (catErr) {
+        return res.status(500).json({
+          success: false,
+            message: 'Error resolving categoryName filter',
+            error: catErr.message
+        });
+      }
+    }
     if (req.query.featured === 'true') filter.featured = true;
     if (req.query.topRated === 'true') filter.topRated = true;
     if (req.query.badge) filter.badge = req.query.badge;
@@ -119,11 +235,33 @@ const getAllProducts = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
+    // Normalize image data for frontend consistency
+    const normalizedProducts = products.map(product => {
+      const productObj = product.toObject();
+      
+      // Add primaryImage field for easy frontend access
+      if (productObj.images && productObj.images.length > 0) {
+        const primaryImg = productObj.images.find(img => img.isPrimary) || productObj.images[0];
+        productObj.primaryImage = primaryImg.url;
+        
+        // Ensure all image URLs are complete
+        productObj.images = productObj.images.map(img => ({
+          ...img,
+          url: img.url.startsWith('http') ? img.url : `http://localhost:3000${img.url.startsWith('/') ? img.url : '/uploads/' + img.url}`
+        }));
+      } else {
+        productObj.primaryImage = null;
+        productObj.images = [];
+      }
+      
+      return productObj;
+    });
+
     const total = await Product.countDocuments(filter);
 
     res.status(200).json({
       success: true,
-      data: products,
+      data: normalizedProducts,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -152,9 +290,31 @@ const getFeaturedProducts = async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(limit);
 
+    // Normalize image data for frontend consistency
+    const normalizedProducts = products.map(product => {
+      const productObj = product.toObject();
+      
+      // Add primaryImage field for easy frontend access
+      if (productObj.images && productObj.images.length > 0) {
+        const primaryImg = productObj.images.find(img => img.isPrimary) || productObj.images[0];
+        productObj.primaryImage = primaryImg.url;
+        
+        // Ensure all image URLs are complete
+        productObj.images = productObj.images.map(img => ({
+          ...img,
+          url: img.url.startsWith('http') ? img.url : `http://localhost:3000${img.url.startsWith('/') ? img.url : '/uploads/' + img.url}`
+        }));
+      } else {
+        productObj.primaryImage = null;
+        productObj.images = [];
+      }
+      
+      return productObj;
+    });
+
     res.status(200).json({
       success: true,
-      data: products
+      data: normalizedProducts
     });
   } catch (error) {
     res.status(500).json({
@@ -177,9 +337,31 @@ const getTopRatedProducts = async (req, res) => {
     .sort({ 'rating.average': -1, 'rating.count': -1 })
     .limit(limit);
 
+    // Normalize image data for frontend consistency
+    const normalizedProducts = products.map(product => {
+      const productObj = product.toObject();
+      
+      // Add primaryImage field for easy frontend access
+      if (productObj.images && productObj.images.length > 0) {
+        const primaryImg = productObj.images.find(img => img.isPrimary) || productObj.images[0];
+        productObj.primaryImage = primaryImg.url;
+        
+        // Ensure all image URLs are complete
+        productObj.images = productObj.images.map(img => ({
+          ...img,
+          url: img.url.startsWith('http') ? img.url : `http://localhost:3000${img.url.startsWith('/') ? img.url : '/uploads/' + img.url}`
+        }));
+      } else {
+        productObj.primaryImage = null;
+        productObj.images = [];
+      }
+      
+      return productObj;
+    });
+
     res.status(200).json({
       success: true,
-      data: products
+      data: normalizedProducts
     });
   } catch (error) {
     res.status(500).json({
@@ -243,8 +425,11 @@ const updateProduct = async (req, res) => {
     }
 
     // Handle inventory updates
-    if (req.body.quantity !== undefined) {
-      updateData['inventory.quantity'] = parseInt(req.body.quantity);
+    if (req.body.quantity !== undefined && req.body.quantity !== null && req.body.quantity !== '') {
+      const quantity = parseInt(req.body.quantity);
+      if (!isNaN(quantity) && quantity >= 0) {
+        updateData['inventory.quantity'] = quantity;
+      }
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(
